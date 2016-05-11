@@ -25,7 +25,7 @@ class SlackOutputTest < Test::Unit::TestCase
 
   def default_attachment
     {
-      mrkdwn_in: %w[text fields],
+      mrkdwn_in: %w[text pretext],
     }
   end
 
@@ -221,12 +221,12 @@ class SlackOutputTest < Test::Unit::TestCase
     # default
     d = create_driver(CONFIG)
     assert_equal true, d.instance.mrkdwn
-    assert_equal %w[text fields], d.instance.mrkdwn_in
+    assert_equal %w[text pretext], d.instance.mrkdwn_in
 
     # true
     d = create_driver(CONFIG + %[mrkdwn true])
     assert_equal true, d.instance.mrkdwn
-    assert_equal %w[text fields], d.instance.mrkdwn_in
+    assert_equal %w[text pretext], d.instance.mrkdwn_in
 
     # false
     d = create_driver(CONFIG + %[mrkdwn false])
@@ -325,15 +325,18 @@ class SlackOutputTest < Test::Unit::TestCase
     d.tag  = 'test'
     # attachments field should be changed to show the title
     mock(d.instance.slack).post_message(default_payload.merge({
-      attachments: [default_attachment.merge({
-        fallback: title,
-        fields:   [
-          {
-            title: title,
-            value: "sowawa1\nsowawa2\n",
-          }
-        ],
-      })]
+      attachments: [
+        default_attachment.merge({
+          fallback: "#{title} sowawa1",
+          title: title,
+          text: "sowawa1",
+        }),
+        default_attachment.merge({
+          fallback: "#{title} sowawa2",
+          title: title,
+          text: "sowawa2",
+        }),
+      ]
     }), {})
     with_timezone('Asia/Tokyo') do
       d.emit({message: 'sowawa1'}, time)
@@ -349,11 +352,18 @@ class SlackOutputTest < Test::Unit::TestCase
     d.tag  = 'test'
     # attachments field should be changed to show the title
     mock(d.instance.slack).post_message(default_payload.merge({
-      attachments: [default_attachment.merge({
-        color:    color,
-        fallback: "sowawa1\nsowawa2\n",
-        text:     "sowawa1\nsowawa2\n",
-      })]
+      attachments: [
+        default_attachment.merge({
+          color:    color,
+          fallback: "sowawa1",
+          text:     "sowawa1",
+        }),
+        default_attachment.merge({
+          color:    color,
+          fallback: "sowawa2",
+          text:     "sowawa2",
+        }),
+      ]
     }), {})
     with_timezone('Asia/Tokyo') do
       d.emit({message: 'sowawa1'}, time)
@@ -383,15 +393,18 @@ class SlackOutputTest < Test::Unit::TestCase
     d.tag  = 'test'
     # attachments field should be changed to show the title
     mock(d.instance.slack).post_message(default_payload.merge({
-      attachments: [default_attachment.merge({
-        fallback: "[07:00:00] #{d.tag}",
-        fields:   [
-          {
-            title: "[07:00:00] #{d.tag}",
-            value: "sowawa1\nsowawa2\n",
-          }
-        ],
-      })]
+      attachments: [
+        default_attachment.merge({
+          fallback: "[07:00:00] #{d.tag} sowawa1",
+          title: "[07:00:00] #{d.tag}",
+          text: "sowawa1",
+        }),
+        default_attachment.merge({
+          fallback: "[07:00:00] #{d.tag} sowawa2",
+          title: "[07:00:00] #{d.tag}",
+          text: "sowawa2",
+        })
+      ]
     }), {})
     with_timezone('Asia/Tokyo') do
       d.emit({message: 'sowawa1'}, time)
@@ -482,9 +495,9 @@ class SlackOutputTest < Test::Unit::TestCase
     mock(d.instance.slack).post_message(default_payload.merge({
       attachments: [default_attachment.merge({
         color:    "good",
-        fallback: "foo\n",
-        text:     "foo\n",
-        mrkdwn_in: ["text", "fields"],
+        fallback: "foo",
+        text:     "foo",
+        mrkdwn_in: ["text", "pretext"],
       })]
     }), {})
     with_timezone('Asia/Tokyo') do

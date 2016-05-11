@@ -112,6 +112,8 @@ DESC
     # for test
     attr_reader :slack, :time_format, :localtime, :timef, :mrkdwn_in, :post_message_opts
 
+    OPTIONAL_ATTACHEMENT_FIELDS = %i[fallback color pretext auther_name author_link author_icon title_link image_url thumb_url]
+
     def initialize
       super
       require 'uri'
@@ -120,7 +122,7 @@ DESC
     def configure(conf)
       conf['time_format'] ||= '%H:%M:%S' # old version compatiblity
       conf['localtime'] ||= true unless conf['utc']
- 
+
       super
 
       @channel = URI.unescape(@channel) # old version compatibility
@@ -182,7 +184,7 @@ DESC
 
       if @mrkdwn
         # Enable markdown for attachments. See https://api.slack.com/docs/formatting
-        @mrkdwn_in = %w[text fields]
+        @mrkdwn_in = %w[text pretext]
       end
 
       if @parse and !%w[none full].include?(@parse)
@@ -217,10 +219,8 @@ DESC
     private
 
     def build_payloads(chunk)
-      if @title
-        build_title_payloads(chunk)
-      elsif @color
-        build_color_payloads(chunk)
+      if @title || @color
+        build_attachement_payloads(chunk)
       else
         build_plain_payloads(chunk)
       end
@@ -247,45 +247,36 @@ DESC
       @common_attachment
     end
 
-    Field = Struct.new("Field", :title, :value)
-    # ruby 1.9.x does not provide #to_h
-    Field.send(:define_method, :to_h) { {title: title, value: value} }
+    def build_attachement_payloads(chunk)
+      ch_records = {}
 
-    def build_title_payloads(chunk)
-      ch_fields = {}
       chunk.msgpack_each do |tag, time, record|
         channel = build_channel(record)
-        per     = tag # title per tag
-        ch_fields[channel]      ||= {}
-        ch_fields[channel][per] ||= Field.new(build_title(record), '')
-        ch_fields[channel][per].value << "#{build_message(record)}\n"
+        ch_records[channel] ||= []
+        ch_records[channel] << record
       end
-      ch_fields.map do |channel, fields|
-        {
-          channel: channel,
-          attachments: [{
-            :fallback => fields.values.map(&:title).join(' '), # fallback is the message shown on popup
-            :fields   => fields.values.map(&:to_h)
-          }.merge(common_attachment)],
-        }.merge(common_payload)
-      end
-    end
 
-    def build_color_payloads(chunk)
-      messages = {}
-      chunk.msgpack_each do |tag, time, record|
-        channel = build_channel(record)
-        messages[channel] ||= ''
-        messages[channel] << "#{build_message(record)}\n"
-      end
-      messages.map do |channel, text|
-        {
-          channel: channel,
-          attachments: [{
-            :fallback => text,
-            :text     => text,
-          }.merge(common_attachment)],
-        }.merge(common_payload)
+      ch_records.map do |channel, records|
+        attachments = records.map do |record|
+          attachment = common_attachment.dup
+          attachment[:text] = build_message(record)
+
+          attachment[:fallback] = ''
+          if @title
+            attachment[:title] = build_title(record)
+            attachment[:fallback] = "#{attachment[:title]} "
+          end
+          attachment[:fallback] << attachment[:text]
+
+          OPTIONAL_ATTACHEMENT_FIELDS.each do |name|
+            if record[name]
+              attachment[name] = record[name]
+            end
+          end
+          attachment
+        end
+
+        { channel: channel, attachments: attachments }.merge(common_payload)
       end
     end
 
