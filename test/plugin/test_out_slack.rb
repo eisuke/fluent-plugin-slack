@@ -372,6 +372,38 @@ class SlackOutputTest < Test::Unit::TestCase
     end
   end
 
+  def test_attachment_payload
+    d = create_driver(CONFIG + %[title %s\ntitle_keys title])
+    time = Time.parse("2014-01-01 22:00:00 UTC").to_i
+    d.tag  = 'test'
+    # attachments field should be changed to show the title
+    mock(d.instance.slack).post_message(default_payload.merge({
+      attachments: [
+        default_attachment.merge({
+          title:    'title1',
+          color:    'good',
+          fallback: "title1 sowawa1",
+          text:     "sowawa1",
+          pretext:  "pretext1",
+          mrkdwn_in: ["text", "pretext"],
+        }),
+        default_attachment.merge({
+          title:    'title2',
+          color:    'danger',
+          fallback: "title2 sowawa2",
+          text:     "sowawa2",
+          pretext:  "pretext2",
+          mrkdwn_in: ["text", "pretext"],
+        }),
+      ]
+    }), {})
+    with_timezone('Asia/Tokyo') do
+      d.emit({message: 'sowawa1', title: 'title1', color: 'good', pretext: 'pretext1'}, time)
+      d.emit({message: 'sowawa2', title: 'title2', color: 'danger', pretext: 'pretext2'}, time)
+      d.run
+    end
+  end
+
   def test_plain_payload
     d = create_driver(CONFIG)
     time = Time.parse("2014-01-01 22:00:00 UTC").to_i

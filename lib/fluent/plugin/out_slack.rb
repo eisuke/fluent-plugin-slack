@@ -220,7 +220,7 @@ DESC
 
     def build_payloads(chunk)
       if @title || @color
-        build_attachement_payloads(chunk)
+        build_attachment_payloads(chunk)
       else
         build_plain_payloads(chunk)
       end
@@ -247,7 +247,7 @@ DESC
       @common_attachment
     end
 
-    def build_attachement_payloads(chunk)
+    def build_attachment_payloads(chunk)
       ch_records = {}
 
       chunk.msgpack_each do |tag, time, record|
@@ -269,8 +269,8 @@ DESC
           attachment[:fallback] << attachment[:text]
 
           OPTIONAL_ATTACHEMENT_FIELDS.each do |name|
-            if record[name]
-              attachment[name] = record[name]
+            if record[name.to_s]
+              attachment[name] = record[name.to_s]
             end
           end
           attachment
